@@ -18,12 +18,13 @@ Sync your Obsidian vault using [jj (Jujutsu)](https://martinvonz.github.io/jj/) 
 - [Node.js](https://nodejs.org/) 18+
 - [jj (Jujutsu)](https://martinvonz.github.io/jj/) installed and in your PATH
 - [Obsidian](https://obsidian.md/) for manual testing
+- [Bun](https://bun.sh/) as the package manager
 - [Lefthook](https://github.com/evilmartians/lefthook) for pre-commit hooks (optional but recommended)
 
 ### Setup
 
 ```bash
-task install       # install npm dependencies
+task install       # install dependencies via bun
 lefthook install   # set up pre-commit hooks
 ```
 

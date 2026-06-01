@@ -13,12 +13,12 @@ tasks:
   # ── Development ──────────────────────────────────────────────
 
   install:
-    desc: Install npm dependencies
+    desc: Install dependencies
     cmds:
-      - npm install
+      - bun install
     sources:
       - package.json
-      - package-lock.json
+      - bun.lock
     generates:
       - node_modules/.package-lock.json
 
@@ -33,26 +33,26 @@ tasks:
     desc: Type-check and bundle for production
     deps: [install]
     cmds:
-      - npx tsc -noEmit -skipLibCheck
+      - bun x tsc -noEmit -skipLibCheck
       - "{{.NODE_BIN}} esbuild.config.mjs production"
 
   lint:
     desc: Run ESLint
     deps: [install]
     cmds:
-      - npx eslint .
+      - bun x eslint .
 
   typecheck:
     desc: Run TypeScript type checker
     deps: [install]
     cmds:
-      - npx tsc -noEmit -skipLibCheck
+      - bun x tsc -noEmit -skipLibCheck
 
   test:
     desc: Run vitest unit tests
     deps: [install]
     cmds:
-      - npx vitest run
+      - bun x vitest run
 
   # ── Composite gates ─────────────────────────────────────────
 
@@ -84,7 +84,7 @@ tasks:
   version:
     desc: Bump version (run as `task version -- patch|minor|major`)
     cmds:
-      - npm version {{.CLI_ARGS}}
+      - bun version {{.CLI_ARGS}}
 
   clean:
     desc: Remove build artifacts
