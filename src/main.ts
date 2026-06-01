@@ -4,15 +4,21 @@ import { JjSyncSettingTab } from './settings';
 import { JjService, JjCommandError } from './jj-service';
 import { SyncService } from './sync';
 import { VaultInitService } from './vault-init';
+import { NoticeService } from './notice';
 
 export default class JjSyncPlugin extends Plugin {
 	settings!: JjSyncSettings;
 	private isSyncing = false;
 	private jjService: JjService | null = null;
 	private syncService: SyncService | null = null;
+	private noticeService!: NoticeService;
 
 	async onload() {
 		await this.loadSettings();
+		this.noticeService = new NoticeService(
+			() => this.settings,
+			(msg, timeout) => new Notice(msg, timeout),
+		);
 
 		this.addRibbonIcon('refresh-cw', 'Sync with remote', () => {
 			void this.triggerSync();
@@ -28,10 +34,88 @@ export default class JjSyncPlugin extends Plugin {
 
 		this.addSettingTab(new JjSyncSettingTab(this.app, this));
 
-		void this.checkVaultInit();
+		void this.onStartup();
 	}
 
 	onunload() {}
+
+	private async onStartup(): Promise<void> {
+		try {
+			const ready = await this.initServices();
+			if (!ready || !this.jjService || !this.syncService) return;
+
+			const adapter = this.app.vault.adapter as unknown as {
+				getBasePath(): string;
+			};
+			const vaultPath = adapter.getBasePath();
+			const vaultInit = new VaultInitService(this.jjService, vaultPath);
+			const isRepo = await vaultInit.isJjRepo();
+
+			if (!isRepo) {
+				await this.handleVaultInit(vaultInit);
+				return;
+			}
+
+			vaultInit.generateGitignore();
+
+			if (this.settings.checkStatusOnStartup) {
+				await this.checkStartupStatus();
+			}
+
+			this.registerAutoSyncInterval();
+		} catch {
+			// Non-fatal — don't block plugin load
+		}
+	}
+
+	/* eslint-disable obsidianmd/ui/sentence-case -- "jj" is the tool's proper name */
+	private async handleVaultInit(
+		vaultInit: VaultInitService,
+	): Promise<void> {
+		if (this.settings.remoteURL.trim()) {
+			new Notice(
+				'jj Sync: vault is not a jj repository. Initializing...',
+				5000,
+			);
+			await vaultInit.initRepo();
+			await vaultInit.configureRemote(this.settings.remoteURL.trim());
+			vaultInit.generateGitignore();
+			new Notice('jj Sync: vault initialized successfully.', 5000);
+		} else {
+			new Notice(
+				'jj Sync: vault is not a jj repository. Configure a remote URL in settings.',
+				10000,
+			);
+		}
+	}
+	/* eslint-enable obsidianmd/ui/sentence-case */
+
+	private async checkStartupStatus(): Promise<void> {
+		if (!this.syncService) return;
+
+		const { behind } = await this.syncService.getRemoteStatus();
+		if (behind <= 0) return;
+
+		if (this.settings.autoSyncOnStartup) {
+			await this.triggerSync();
+		} else {
+			this.noticeService.show(
+				`jj Sync: ${behind} change(s) behind remote. Click sync to update.`,
+				'WARNING',
+			);
+		}
+	}
+
+	private registerAutoSyncInterval(): void {
+		const minutes = this.settings.syncIntervalMinutes;
+		if (!Number.isInteger(minutes) || minutes < 1) return;
+
+		this.registerInterval(
+			window.setInterval(() => {
+				void this.triggerSync();
+			}, minutes * 60 * 1000),
+		);
+	}
 
 	private async initServices(): Promise<boolean> {
 		if (this.jjService && this.syncService) return true;
@@ -40,16 +124,20 @@ export default class JjSyncPlugin extends Plugin {
 			const binary = await JjService.findBinary(
 				this.settings.jjBinaryPath,
 			);
-			const adapter = this.app.vault.adapter as unknown as { getBasePath(): string };
+			const adapter = this.app.vault.adapter as unknown as {
+				getBasePath(): string;
+			};
 			const vaultPath = adapter.getBasePath();
 			this.jjService = new JjService(binary, vaultPath);
 			this.syncService = new SyncService(
 				this.jjService,
 				this.settings.bookmarkName,
 				{
-					onSuccess: (msg) => new Notice(msg),
-					onError: (msg) => new Notice(msg, 10000),
-					onWarning: (msg) => new Notice(msg, 8000),
+					onSuccess: () => this.noticeService.showSyncSuccess(),
+					onError: (msg) =>
+						this.noticeService.show(msg, 'ERROR', 10000),
+					onWarning: (msg) =>
+						this.noticeService.show(msg, 'WARNING', 8000),
 				},
 			);
 			return true;
@@ -58,14 +146,17 @@ export default class JjSyncPlugin extends Plugin {
 				err instanceof JjCommandError
 					? err.message
 					: 'Failed to initialize jj service.';
-			new Notice(msg, 10000);
+			this.noticeService.show(msg, 'ERROR', 10000);
 			return false;
 		}
 	}
 
 	private async triggerSync(): Promise<void> {
 		if (this.isSyncing) {
-			new Notice('jj sync already in progress'); // eslint-disable-line obsidianmd/ui/sentence-case
+			this.noticeService.show(
+				'jj sync already in progress',
+				'WARNING',
+			);
 			return;
 		}
 
@@ -81,45 +172,9 @@ export default class JjSyncPlugin extends Plugin {
 					: err instanceof Error
 						? err.message
 						: 'An unexpected error occurred during sync.';
-			new Notice(msg, 10000);
+			this.noticeService.show(msg, 'ERROR', 10000);
 		} finally {
 			this.isSyncing = false;
-		}
-	}
-
-	private async checkVaultInit(): Promise<void> {
-		try {
-			const ready = await this.initServices();
-			if (!ready || !this.jjService) return;
-
-			const adapter = this.app.vault.adapter as unknown as { getBasePath(): string };
-			const vaultPath = adapter.getBasePath();
-			const vaultInit = new VaultInitService(this.jjService, vaultPath);
-			const isRepo = await vaultInit.isJjRepo();
-
-			/* eslint-disable obsidianmd/ui/sentence-case -- "jj" is the tool's proper name */
-			if (!isRepo) {
-				if (this.settings.remoteURL.trim()) {
-					new Notice(
-						'jj Sync: vault is not a jj repository. Initializing...',
-						5000,
-					);
-					await vaultInit.initRepo();
-					await vaultInit.configureRemote(this.settings.remoteURL.trim());
-					vaultInit.generateGitignore();
-					new Notice('jj Sync: vault initialized successfully.', 5000);
-				} else {
-					new Notice(
-						'jj Sync: vault is not a jj repository. Configure a remote URL in settings.',
-						10000,
-					);
-				}
-			/* eslint-enable obsidianmd/ui/sentence-case */
-			} else {
-				vaultInit.generateGitignore();
-			}
-		} catch {
-			// Non-fatal — don't block plugin load
 		}
 	}
 

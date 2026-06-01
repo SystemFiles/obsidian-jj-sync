@@ -16,6 +16,7 @@ export default tseslint.config(
 		'tsconfig.json',
 		'test-vault',
 		'vitest.config.ts',
+		'src/__mocks__',
 	]),
 	{
 		languageOptions: {
