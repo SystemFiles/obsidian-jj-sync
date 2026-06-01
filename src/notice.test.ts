@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { JjSyncSettings } from './types';
 import { DEFAULT_SETTINGS } from './types';
-import { NoticeService } from './notice';
+import { NoticeService, type NoticeFactory } from './notice';
 
 function makeSettings(overrides: Partial<JjSyncSettings> = {}): JjSyncSettings {
 	return { ...DEFAULT_SETTINGS, ...overrides };
 }
 
 describe('NoticeService', () => {
-	let mockNotice: ReturnType<typeof vi.fn>;
+	let mockNotice: NoticeFactory;
 
 	beforeEach(() => {
-		mockNotice = vi.fn();
+		mockNotice = vi.fn<NoticeFactory>();
 	});
 
 	describe('show — notice level ALL', () => {
