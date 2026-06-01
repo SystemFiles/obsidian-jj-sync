@@ -69,15 +69,15 @@ tasks:
   test-vault:setup:
     desc: Initialize test vault with jj repo and local bare remote
     cmds:
-      - mkdir -p test-vault/.obsidian/plugins/obsidian-jj-sync
-      - ln -sf "$(pwd)/main.js" test-vault/.obsidian/plugins/obsidian-jj-sync/main.js
-      - ln -sf "$(pwd)/manifest.json" test-vault/.obsidian/plugins/obsidian-jj-sync/manifest.json
-      - ln -sf "$(pwd)/styles.css" test-vault/.obsidian/plugins/obsidian-jj-sync/styles.css
+      - mkdir -p test-vault/.obsidian/plugins/jj-sync
+      - ln -sf "$(pwd)/main.js" test-vault/.obsidian/plugins/jj-sync/main.js
+      - ln -sf "$(pwd)/manifest.json" test-vault/.obsidian/plugins/jj-sync/manifest.json
+      - ln -sf "$(pwd)/styles.css" test-vault/.obsidian/plugins/jj-sync/styles.css
       - cd test-vault && {{.JJ_BIN}} git init || true
       - git init --bare test-vault-remote.git 2>/dev/null || true
       - cd test-vault && {{.JJ_BIN}} git remote add origin ../test-vault-remote.git 2>/dev/null || true
     status:
-      - test -L test-vault/.obsidian/plugins/obsidian-jj-sync/main.js
+      - test -L test-vault/.obsidian/plugins/jj-sync/main.js
 
   # ── Release ─────────────────────────────────────────────────
 

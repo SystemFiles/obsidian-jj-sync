@@ -1,4 +1,4 @@
-# obsidian-jj-sync
+# jj-sync
 
 Sync your Obsidian vault using [jj (Jujutsu)](https://martinvonz.github.io/jj/) VCS with conventional commits.
 
