@@ -1,0 +1,93 @@
+version: "3"
+
+vars:
+  JJ_BIN: jj
+  NODE_BIN: node
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list-all
+
+  # ── Development ──────────────────────────────────────────────
+
+  install:
+    desc: Install npm dependencies
+    cmds:
+      - npm install
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules/.package-lock.json
+
+  dev:
+    desc: Start esbuild in watch mode
+    cmds:
+      - "{{.NODE_BIN}} esbuild.config.mjs"
+
+  # ── Quality gates ───────────────────────────────────────────
+
+  build:
+    desc: Type-check and bundle for production
+    deps: [install]
+    cmds:
+      - npx tsc -noEmit -skipLibCheck
+      - "{{.NODE_BIN}} esbuild.config.mjs production"
+
+  lint:
+    desc: Run ESLint
+    deps: [install]
+    cmds:
+      - npx eslint .
+
+  typecheck:
+    desc: Run TypeScript type checker
+    deps: [install]
+    cmds:
+      - npx tsc -noEmit -skipLibCheck
+
+  test:
+    desc: Run vitest unit tests
+    deps: [install]
+    cmds:
+      - npx vitest run
+
+  # ── Composite gates ─────────────────────────────────────────
+
+  check:
+    desc: Run all quality gates (lint, typecheck, test, build)
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: test
+      - task: build
+
+  # ── Test vault setup ────────────────────────────────────────
+
+  test-vault:setup:
+    desc: Initialize test vault with jj repo and local bare remote
+    cmds:
+      - mkdir -p test-vault/.obsidian/plugins/obsidian-jj-sync
+      - ln -sf "$(pwd)/main.js" test-vault/.obsidian/plugins/obsidian-jj-sync/main.js
+      - ln -sf "$(pwd)/manifest.json" test-vault/.obsidian/plugins/obsidian-jj-sync/manifest.json
+      - ln -sf "$(pwd)/styles.css" test-vault/.obsidian/plugins/obsidian-jj-sync/styles.css
+      - cd test-vault && {{.JJ_BIN}} git init || true
+      - git init --bare test-vault-remote.git 2>/dev/null || true
+      - cd test-vault && {{.JJ_BIN}} git remote add origin ../test-vault-remote.git 2>/dev/null || true
+    status:
+      - test -L test-vault/.obsidian/plugins/obsidian-jj-sync/main.js
+
+  # ── Release ─────────────────────────────────────────────────
+
+  version:
+    desc: Bump version (run as `task version -- patch|minor|major`)
+    cmds:
+      - npm version {{.CLI_ARGS}}
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -f main.js main.js.map
+      - rm -rf node_modules

@@ -23,41 +23,32 @@ Sync your Obsidian vault using [jj (Jujutsu)](https://martinvonz.github.io/jj/) 
 ### Setup
 
 ```bash
-npm install
+task install       # install npm dependencies
 lefthook install   # set up pre-commit hooks
 ```
 
 ### Build and develop
 
 ```bash
-npm run dev        # watch mode — rebuilds on file changes
-npm run build      # production build (type-checks then bundles)
-npm run lint       # run ESLint
-npm test           # run vitest unit tests
+task dev           # watch mode — rebuilds on file changes
+task build         # production build (type-checks then bundles)
+task lint          # run ESLint
+task test          # run vitest unit tests
+task typecheck     # run TypeScript type checker only
+task check         # run all quality gates (lint, typecheck, test, build)
 ```
+
+Run `task` with no arguments to see all available tasks.
 
 ### Test vault
 
-A gitignored `test-vault/` directory is used for manual integration testing. To set it up:
+A gitignored `test-vault/` directory is used for manual integration testing:
 
 ```bash
-# Create symlinks so Obsidian loads the plugin from your build output
-mkdir -p test-vault/.obsidian/plugins/obsidian-jj-sync
-ln -sf "$(pwd)/main.js" test-vault/.obsidian/plugins/obsidian-jj-sync/main.js
-ln -sf "$(pwd)/manifest.json" test-vault/.obsidian/plugins/obsidian-jj-sync/manifest.json
-ln -sf "$(pwd)/styles.css" test-vault/.obsidian/plugins/obsidian-jj-sync/styles.css
-
-# Initialize the test vault as a jj repo with a local bare remote
-cd test-vault
-jj git init
-cd ..
-git init --bare test-vault-remote.git
-cd test-vault
-jj git remote add origin ../test-vault-remote.git
-cd ..
+task test-vault:setup
 ```
 
-Then open `test-vault/` as a vault in Obsidian and enable the plugin.
+This creates the directory, symlinks build output into the plugin folder, initializes a jj repo, and creates a local bare git remote. Then open `test-vault/` as a vault in Obsidian and enable the plugin.
 
 ## License
 
