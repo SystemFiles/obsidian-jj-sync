@@ -1,0 +1,24 @@
+# npm
+node_modules
+
+# Build output (uploaded to GitHub releases, not committed)
+main.js
+*.map
+
+# Obsidian plugin data
+data.json
+
+# Test vault (local development only)
+test-vault/
+test-vault-remote.git/
+
+# SDD spec artifacts (local planning only)
+docs/specs/
+
+# IDE
+.vscode
+*.iml
+.idea
+
+# macOS
+.DS_Store
