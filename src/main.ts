@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, type JjSyncSettings } from './types';
 import { JjSyncSettingTab } from './settings';
 import { JjService, JjCommandError } from './jj-service';
 import { SyncService } from './sync';
+import { VaultInitService } from './vault-init';
 
 export default class JjSyncPlugin extends Plugin {
 	settings!: JjSyncSettings;
@@ -26,6 +27,8 @@ export default class JjSyncPlugin extends Plugin {
 		});
 
 		this.addSettingTab(new JjSyncSettingTab(this.app, this));
+
+		void this.checkVaultInit();
 	}
 
 	onunload() {}
@@ -81,6 +84,42 @@ export default class JjSyncPlugin extends Plugin {
 			new Notice(msg, 10000);
 		} finally {
 			this.isSyncing = false;
+		}
+	}
+
+	private async checkVaultInit(): Promise<void> {
+		try {
+			const ready = await this.initServices();
+			if (!ready || !this.jjService) return;
+
+			const adapter = this.app.vault.adapter as unknown as { getBasePath(): string };
+			const vaultPath = adapter.getBasePath();
+			const vaultInit = new VaultInitService(this.jjService, vaultPath);
+			const isRepo = await vaultInit.isJjRepo();
+
+			/* eslint-disable obsidianmd/ui/sentence-case -- "jj" is the tool's proper name */
+			if (!isRepo) {
+				if (this.settings.remoteURL.trim()) {
+					new Notice(
+						'jj Sync: vault is not a jj repository. Initializing...',
+						5000,
+					);
+					await vaultInit.initRepo();
+					await vaultInit.configureRemote(this.settings.remoteURL.trim());
+					vaultInit.generateGitignore();
+					new Notice('jj Sync: vault initialized successfully.', 5000);
+				} else {
+					new Notice(
+						'jj Sync: vault is not a jj repository. Configure a remote URL in settings.',
+						10000,
+					);
+				}
+			/* eslint-enable obsidianmd/ui/sentence-case */
+			} else {
+				vaultInit.generateGitignore();
+			}
+		} catch {
+			// Non-fatal — don't block plugin load
 		}
 	}
 
