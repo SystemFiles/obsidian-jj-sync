@@ -18,20 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-tags: true
 
       - name: Check for new version
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(jq -r .version manifest.json)
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if git tag -l "$version" | grep -q .; then
+          echo "Detected version: $version"
+          if gh release view "$version" --json tagName >/dev/null 2>&1; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Tag $version already exists — skipping release"
+            echo "::notice::Release $version already exists — skipping"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
-            echo "New version $version detected — proceeding with release"
+            echo "::notice::New version $version — proceeding with release"
           fi
 
       - uses: oven-sh/setup-bun@v2
