@@ -134,4 +134,28 @@ export class JjService {
 	async gitInit(): Promise<JjResult> {
 		return this.runCommand(['git', 'init']);
 	}
+
+	async gitRemoteList(): Promise<Array<{ name: string; url: string }>> {
+		const { stdout } = await this.runCommand(['git', 'remote', 'list']);
+		return stdout
+			.split('\n')
+			.filter((line) => line.trim().length > 0)
+			.map((line) => {
+				const spaceIdx = line.indexOf(' ');
+				return {
+					name: line.substring(0, spaceIdx),
+					url: line.substring(spaceIdx + 1),
+				};
+			});
+	}
+
+	async bookmarkList(): Promise<string[]> {
+		const { stdout } = await this.runCommand([
+			'bookmark',
+			'list',
+			'-T',
+			'name ++ "\\n"',
+		]);
+		return stdout.split('\n').filter((line) => line.trim().length > 0);
+	}
 }

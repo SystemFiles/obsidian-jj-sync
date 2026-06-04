@@ -5,6 +5,7 @@ import { JjService, JjCommandError } from './jj-service';
 import { SyncService } from './sync';
 import { VaultInitService } from './vault-init';
 import { NoticeService } from './notice';
+import { detectRepoSettings, maskCredentials } from './repo-detect';
 
 export default class JjSyncPlugin extends Plugin {
 	settings!: JjSyncSettings;
@@ -58,6 +59,8 @@ export default class JjSyncPlugin extends Plugin {
 
 			vaultInit.generateGitignore();
 
+			await this.autoDetectSettings();
+
 			if (this.settings.checkStatusOnStartup) {
 				await this.checkStartupStatus();
 			}
@@ -68,27 +71,67 @@ export default class JjSyncPlugin extends Plugin {
 		}
 	}
 
-	/* eslint-disable obsidianmd/ui/sentence-case -- "jj" is the tool's proper name */
 	private async handleVaultInit(
 		vaultInit: VaultInitService,
 	): Promise<void> {
 		if (this.settings.remoteURL.trim()) {
-			new Notice(
-				'jj Sync: vault is not a jj repository. Initializing...',
+			this.noticeService.show(
+				'Vault is not a jj repository. Initializing...',
+				'INFO',
 				5000,
 			);
 			await vaultInit.initRepo();
 			await vaultInit.configureRemote(this.settings.remoteURL.trim());
 			vaultInit.generateGitignore();
-			new Notice('jj Sync: vault initialized successfully.', 5000);
+			this.noticeService.show(
+				'Vault initialized successfully.',
+				'INFO',
+				5000,
+			);
 		} else {
-			new Notice(
-				'jj Sync: vault is not a jj repository. Configure a remote URL in settings.',
+			this.noticeService.show(
+				'Vault is not a jj repository. Configure a remote URL in settings.',
+				'WARNING',
 				10000,
 			);
 		}
 	}
-	/* eslint-enable obsidianmd/ui/sentence-case */
+
+	private async autoDetectSettings(): Promise<void> {
+		if (!this.jjService) return;
+
+		try {
+			const detected = await detectRepoSettings(this.jjService);
+			let changed = false;
+			const parts: string[] = [];
+
+			if (detected.remoteURL && !this.settings.remoteURL.trim()) {
+				this.settings.remoteURL = detected.remoteURL;
+				parts.push(`Remote: ${maskCredentials(detected.remoteURL)}`);
+				changed = true;
+			}
+
+			if (
+				detected.bookmarkName &&
+				detected.bookmarkName !== this.settings.bookmarkName
+			) {
+				this.settings.bookmarkName = detected.bookmarkName;
+				parts.push(`Bookmark: ${detected.bookmarkName}`);
+				changed = true;
+			}
+
+			if (changed) {
+				await this.saveSettings();
+				this.noticeService.show(
+					`Detected ${parts.join(', ')}`,
+					'INFO',
+					5000,
+				);
+			}
+		} catch {
+			// Best-effort — don't block startup
+		}
+	}
 
 	private async checkStartupStatus(): Promise<void> {
 		if (!this.syncService) return;
@@ -100,7 +143,7 @@ export default class JjSyncPlugin extends Plugin {
 			await this.triggerSync();
 		} else {
 			this.noticeService.show(
-				`jj Sync: ${behind} change(s) behind remote. Click sync to update.`,
+				`${behind} change(s) behind remote. Click sync to update.`,
 				'WARNING',
 			);
 		}
@@ -154,7 +197,7 @@ export default class JjSyncPlugin extends Plugin {
 	private async triggerSync(): Promise<void> {
 		if (this.isSyncing) {
 			this.noticeService.show(
-				'jj sync already in progress',
+				'Sync already in progress.',
 				'WARNING',
 			);
 			return;

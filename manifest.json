@@ -1,7 +1,7 @@
 {
 	"id": "jj-sync",
 	"name": "jj Sync",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"minAppVersion": "1.0.0",
 	"description": "Sync your vault using jj (Jujutsu) VCS with conventional commits.",
 	"author": "Ben Sykes",

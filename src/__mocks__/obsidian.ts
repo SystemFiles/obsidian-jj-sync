@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-extraneous-class */
 export class Notice {
-	constructor(_message: string, _timeout?: number) {}
+	constructor(_message: string | DocumentFragment, _timeout?: number) {}
 }
 export class Plugin {}
 export class PluginSettingTab {}

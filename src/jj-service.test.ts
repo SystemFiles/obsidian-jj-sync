@@ -216,4 +216,76 @@ describe('JjService', () => {
 			expect(tried.filter((b) => b === 'jj').length).toBe(1);
 		});
 	});
+
+	describe('gitRemoteList', () => {
+		it('parses a single remote', async () => {
+			setupExecFile((_bin, _args, _opts, cb) => {
+				cb(null, { stdout: 'origin https://github.com/user/repo.git\n', stderr: '' });
+			});
+
+			const svc = new JjService('jj', '/v');
+			const remotes = await svc.gitRemoteList();
+			expect(remotes).toEqual([
+				{ name: 'origin', url: 'https://github.com/user/repo.git' },
+			]);
+		});
+
+		it('parses multiple remotes', async () => {
+			setupExecFile((_bin, _args, _opts, cb) => {
+				cb(null, {
+					stdout: 'origin https://github.com/user/repo.git\nupstream https://github.com/org/repo.git\n',
+					stderr: '',
+				});
+			});
+
+			const svc = new JjService('jj', '/v');
+			const remotes = await svc.gitRemoteList();
+			expect(remotes).toEqual([
+				{ name: 'origin', url: 'https://github.com/user/repo.git' },
+				{ name: 'upstream', url: 'https://github.com/org/repo.git' },
+			]);
+		});
+
+		it('returns empty array on empty output', async () => {
+			setupExecFile((_bin, _args, _opts, cb) => {
+				cb(null, { stdout: '', stderr: '' });
+			});
+
+			const svc = new JjService('jj', '/v');
+			const remotes = await svc.gitRemoteList();
+			expect(remotes).toEqual([]);
+		});
+	});
+
+	describe('bookmarkList', () => {
+		it('parses a single bookmark', async () => {
+			setupExecFile((_bin, _args, _opts, cb) => {
+				cb(null, { stdout: 'main\n', stderr: '' });
+			});
+
+			const svc = new JjService('jj', '/v');
+			const bookmarks = await svc.bookmarkList();
+			expect(bookmarks).toEqual(['main']);
+		});
+
+		it('parses multiple bookmarks', async () => {
+			setupExecFile((_bin, _args, _opts, cb) => {
+				cb(null, { stdout: 'main\ndev\nfeature\n', stderr: '' });
+			});
+
+			const svc = new JjService('jj', '/v');
+			const bookmarks = await svc.bookmarkList();
+			expect(bookmarks).toEqual(['main', 'dev', 'feature']);
+		});
+
+		it('returns empty array on empty output', async () => {
+			setupExecFile((_bin, _args, _opts, cb) => {
+				cb(null, { stdout: '', stderr: '' });
+			});
+
+			const svc = new JjService('jj', '/v');
+			const bookmarks = await svc.bookmarkList();
+			expect(bookmarks).toEqual([]);
+		});
+	});
 });
