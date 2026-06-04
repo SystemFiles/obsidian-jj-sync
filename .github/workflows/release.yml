@@ -21,15 +21,15 @@ jobs:
 
       - name: Check for new version
         id: version
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(jq -r .version manifest.json)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Detected version: $version"
-          if gh release view "$version" --json tagName >/dev/null 2>&1; then
+          remote_tags=$(git ls-remote --tags origin "refs/tags/$version")
+          echo "Remote tag check: ${remote_tags:-<none>}"
+          if [ -n "$remote_tags" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Release $version already exists — skipping"
+            echo "::notice::Tag $version already exists on remote — skipping release"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
             echo "::notice::New version $version — proceeding with release"
